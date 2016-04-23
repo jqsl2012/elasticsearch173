@@ -1,0 +1,41 @@
+[[breaking-changes-1.6]]
+== Breaking changes in 1.6
+
+This section discusses the changes that you need to be aware of when migrating
+your application from Elasticsearch 1.x to Elasticsearch 1.6.
+
+[float]
+=== More Like This API
+
+The More Like This API query has been deprecated and will be removed in 2.0. Instead use the <<query-dsl-mlt-query, More Like This Query>>.
+
+[float]
+=== `top_children` query
+
+The `top_children` query has been deprecated and will be removed in 2.0. Instead the `has_child` query should be used.
+The `top_children` query isn't always faster than the `has_child` query and the `top_children` query is often inaccurate.
+The total hits and any aggregations in the same search request will likely be off.
+
+[float]
+=== Snapshot and Restore
+
+Locations of file system repositories has to be now registered using `path.repo` setting. The `path.repo`
+setting can contain one or more repository locations:
+
+[source,yaml]
+---------------
+path.repo: ["/mnt/daily", "/mnt/weekly"]
+---------------
+
+If the file system repository location is specified as an absolute path it has to start with one of the locations
+specified in `path.repo`. If the location is specified as a relative path, it will be resolved against the first
+location specified in the `path.repo` setting.
+
+Starting with version 1.6.1 URL repositories with `http:`, `https:`, and `ftp:` URLs has to be whitelisted by specifying allowed URLs in the
+`repositories.url.allowed_urls` setting. This setting supports wildcards in the place of host, path, query, and
+fragment. For example:
+
+[source,yaml]
+-----------------------------------
+repositories.url.allowed_urls: ["http://www.example.org/root/*", "https://*.mydomain.com/*?*#*"]
+-----------------------------------
