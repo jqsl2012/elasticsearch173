@@ -466,61 +466,15 @@ public class InternalEngine extends Engine {
     
     //批量写索引
     private void innerIndexWhenBulk(Index index) throws IOException {
-//        synchronized (dirtyLock(index.uid())) {
-//            logger.info("innerIndex,{}", "params");
-
-//            final long currentVersion;
-//            VersionValue versionValue = versionMap.getUnderLock(index.uid().bytes());
-//            if (versionValue == null) {
-//                currentVersion = loadCurrentVersionFromIndex(index.uid());
-//            } else {
-//                if (engineConfig.isEnableGcDeletes() && versionValue.delete() && (engineConfig.getThreadPool().estimatedTimeInMillis() - versionValue.time()) > engineConfig.getGcDeletesInMillis()) {
-//                    currentVersion = Versions.NOT_FOUND; // deleted, and GC
-//                } else {
-//                    currentVersion = versionValue.version();
-//                }
-//            }
-//
-//            long updatedVersion;
-//            long expectedVersion = index.version();
-//            if (index.versionType().isVersionConflictForWrites(currentVersion, expectedVersion)) {
-//                if (index.origin() == Operation.Origin.RECOVERY) {
-//                    return;
-//                } else {
-//                    throw new VersionConflictEngineException(shardId, index.type(), index.id(), currentVersion, expectedVersion);
-//                }
-//            }
-//            updatedVersion = index.versionType().updateVersion(currentVersion, expectedVersion);
-//
-//            index.updateVersion(updatedVersion);
-//            if (currentVersion == Versions.NOT_FOUND) {
-                // document does not exists, we can optimize for create
-                index.created(true);
-//                logger.debug("index.create,docs.size={},innerIndexWhenBulk", index.docs().size());
-                if (index.docs().size() == 1) {
-                    indexWriter.addDocument(index.docs().get(0), index.analyzer());
-                } else {
-                    indexWriter.addDocuments(index.docs(), index.analyzer());
-                }
-//            } else {
-//                if (versionValue != null) {
-//                    index.created(versionValue.delete()); // we have a delete which is not GC'ed...
-//                }
-//                
-//                logger.debug("index.update,docs.size={}", index.docs().size());
-//                if (index.docs().size() > 1) {
-//                    indexWriter.updateDocuments(index.uid(), index.docs(), index.analyzer());
-//                } else {
-//                    indexWriter.updateDocument(index.uid(), index.docs().get(0), index.analyzer());
-//                }
-//            }
-//            Translog.Location translogLocation = translog.add(new Translog.Index(index));
-                translog.add(new Translog.Index(index));
-
-//            versionMap.putUnderLock(index.uid().bytes(), new VersionValue(updatedVersion, translogLocation));
-
-            indexingService.postIndexUnderLock(index);
-//        }
+        // document does not exists, we can optimize for create
+        index.created(true);
+        if (index.docs().size() == 1) {
+            indexWriter.addDocument(index.docs().get(0), index.analyzer());
+        } else {
+            indexWriter.addDocuments(index.docs(), index.analyzer());
+        }
+        translog.add(new Translog.Index(index));
+        indexingService.postIndexUnderLock(index);
     }
 
     @Override
