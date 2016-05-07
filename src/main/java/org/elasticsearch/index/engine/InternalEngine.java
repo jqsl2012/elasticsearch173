@@ -258,15 +258,27 @@ public class InternalEngine extends Engine {
                 // Don't throttle recovery operations
                 innerCreate(create);
             } else {
-//                try (Releasable r = throttle.acquireThrottle()) {
-                    innerCreate(create);
-//                }
+                if(create.opType() == Operation.Type.BULK){
+                	innerCreateWhenBulk(create);
+                }else{
+                	innerCreate(create);
+                }
             }
         } catch (OutOfMemoryError | IllegalStateException | IOException t) {
             maybeFailEngine("create", t);
             throw new CreateFailedEngineException(shardId, create, t);
         }
         checkVersionMapRefresh();
+    }
+    
+    private void innerCreateWhenBulk(Create create) throws IOException {
+    	if (create.docs().size() == 1) {
+            indexWriter.addDocument(create.docs().get(0), create.analyzer());
+        } else {
+        	indexWriter.addDocuments(create.docs(), create.analyzer());
+        }
+    	translog.add(new Translog.Create(create));
+	    indexingService.postCreateUnderLock(create);
     }
 
     private void innerCreate(Create create) throws IOException {
@@ -336,14 +348,14 @@ public class InternalEngine extends Engine {
         create.updateVersion(updatedVersion);
 
         if (doUpdate) {
-            logger.debug("index.updateDocument,docs.size={}", create.docs().size());
+//            logger.debug("index.updateDocument,docs.size={}", create.docs().size());
             if (create.docs().size() > 1) {
                 indexWriter.updateDocuments(create.uid(), create.docs(), create.analyzer());
             } else {
                 indexWriter.updateDocument(create.uid(), create.docs().get(0), create.analyzer());
             }
         } else {
-            logger.debug("index.addDocument,docs.size={}", create.docs().size());
+//            logger.debug("index.addDocument,docs.size={}", create.docs().size());
             if (create.docs().size() > 1) {
                 indexWriter.addDocuments(create.docs(), create.analyzer());
             } else {
@@ -438,7 +450,7 @@ public class InternalEngine extends Engine {
             if (currentVersion == Versions.NOT_FOUND) {
                 // document does not exists, we can optimize for create
                 index.created(true);
-                logger.debug("index.create,docs.size={}", index.docs().size());
+                logger.info("index.create,docs.size={}", index.docs().size());
                 if (index.docs().size() > 1) {
                     indexWriter.addDocuments(index.docs(), index.analyzer());
                 } else {
@@ -449,7 +461,7 @@ public class InternalEngine extends Engine {
                     index.created(versionValue.delete()); // we have a delete which is not GC'ed...
                 }
                 
-                logger.debug("index.update,docs.size={}", index.docs().size());
+                logger.info("index.update,docs.size={}", index.docs().size());
                 if (index.docs().size() > 1) {
                     indexWriter.updateDocuments(index.uid(), index.docs(), index.analyzer());
                 } else {

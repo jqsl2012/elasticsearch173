@@ -19,10 +19,17 @@
 
 package org.elasticsearch.index;
 
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.index.IndexRequest.OpType;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.stresstest.indexing.BulkIndexingStressTest;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import org.junit.Test;
@@ -34,6 +41,41 @@ import java.util.concurrent.TimeUnit;
 @ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST,numDataNodes =2)
 public class IndexRequestBuilderTests extends ElasticsearchIntegrationTest {
     
+	@Test
+	public void testBulk(){
+		createIndex("bulk");
+        ensureYellow();
+		BulkRequest bulk = new BulkRequest();
+//		BulkRequestBuilder bulk = client().prepareBulk();
+        for(int i = 0; i < 10 ; i++){
+        	IndexRequestBuilder request = client().prepareIndex("bulk", "bulk")
+            		.setSource(new BytesArray("{\"test_field\" : \"foobar"+i+"\"}"))
+            		.setId(Strings.base64UUID())
+            		.setOpType(OpType.BULK);
+            bulk.add(request.request());
+        }
+
+        client().bulk(bulk,new ActionListener<BulkResponse>() {
+			
+			@Override
+			public void onResponse(BulkResponse response) {
+				System.out.println("onResponse");
+			}
+			
+			@Override
+			public void onFailure(Throwable e) {
+				System.out.println("onFailure");
+			}
+		});
+        
+        try {
+			TimeUnit.DAYS.sleep(1);
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
+		}
+	}
+	
+	
     @Test
     public void testSetSource() throws InterruptedException, ExecutionException {
         createIndex("test");
@@ -48,6 +90,7 @@ public class IndexRequestBuilderTests extends ElasticsearchIntegrationTest {
                 client().prepareIndex("test", "test").setSource(new BytesArray("{\"test_field\" : \"foobar\"}").toBytes()),
                 client().prepareIndex("test", "test").setSource(map)
         };
+
         indexRandom(true, builders);
         
 //        TimeUnit.DAYS.sleep(1);
